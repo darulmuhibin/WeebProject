@@ -32,9 +32,11 @@ from urllib.error import HTTPError
 
 from pySmartDL import SmartDL
 
-from userbot import CMD_HELP, LOGS, TEMP_DOWNLOAD_DIRECTORY, bot
+from userbot import CMD_HELP, LOGS, TEMP_DOWNLOAD_DIRECTORY
 from userbot.events import register
+from userbot.modules.google_drive import create_app, get_mimeType, upload
 from userbot.utils import humanbytes, time_formatter
+from userbot.utils.exceptions import CancelProcess
 
 
 async def subprocess_run(megadl, cmd):
@@ -43,7 +45,7 @@ async def subprocess_run(megadl, cmd):
     exitCode = subproc.returncode
     if exitCode != 0:
         await megadl.edit(
-            "**An error was detected while running subprocess.**\n"
+            "**Kesalahan terdeteksi saat menjalankan subproses.**\n"
             f"exitCode : `{exitCode}`\n"
             f"stdout : `{stdout.decode().strip()}`\n"
             f"stderr : `{stderr.decode().strip()}`"
@@ -54,7 +56,7 @@ async def subprocess_run(megadl, cmd):
 
 @register(outgoing=True, pattern=r"^\.mega(?: |$)(.*)")
 async def mega_downloader(megadl):
-    await megadl.edit("`Collecting information...`")
+    await megadl.edit("`Mengumpulkan informasi...`")
     if not os.path.isdir(TEMP_DOWNLOAD_DIRECTORY):
         os.makedirs(TEMP_DOWNLOAD_DIRECTORY)
     msg_link = await megadl.get_reply_message()
@@ -63,25 +65,26 @@ async def mega_downloader(megadl):
         pass
     elif msg_link:
         link = msg_link.text
+        link_msg_id = msg_link.id
     else:
-        return await megadl.edit("Usage: `.mega` **<MEGA.nz link>**")
+        return await megadl.edit("Untuk: `.mega` **<Tautan MEGA.nz>**")
     try:
         link = re.findall(r"\bhttps?://.*mega.*\.nz\S+", link)[0]
         """ - Mega changed their URL again - """
         if "file" in link:
             link = link.replace("#", "!").replace("file/", "#!")
         elif "folder" in link or "#F" in link or "#N" in link:
-            await megadl.edit("`folder download support are removed...`")
+            await megadl.edit("`Dukungan folder unduhan dihapus...`")
             return
     except IndexError:
-        await megadl.edit("`MEGA.nz link not found...`")
+        await megadl.edit("`Tautan MEGA.nz tidak ditemukan...`")
         return None
     cmd = f"bin/megadown -q -m {link}"
     result = await subprocess_run(megadl, cmd)
     try:
         data = json.loads(result[0])
     except json.JSONDecodeError:
-        await megadl.edit("**JSONDecodeError**: `failed to extract link...`")
+        await megadl.edit("**JSONDecodeError**: `gagal mengekstrak tautan...`")
         return None
     except (IndexError, TypeError):
         return
@@ -92,6 +95,10 @@ async def mega_downloader(megadl):
     temp_file_name = file_name + ".temp"
     temp_file_path = TEMP_DOWNLOAD_DIRECTORY + temp_file_name
     file_path = TEMP_DOWNLOAD_DIRECTORY + file_name
+    mimeType = await get_mimeType(file_path)
+    service = await create_app(megadl)
+    if service is False:
+        return None
     if os.path.isfile(file_path):
         try:
             raise FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST), file_path)
@@ -125,10 +132,10 @@ async def mega_downloader(megadl):
                 f"`{file_name}`\n\n"
                 "Status\n"
                 f"{progress_str}\n"
-                f"`{humanbytes(downloaded)} of {humanbytes(total_length)}"
+                f"`{humanbytes(downloaded)} dari {humanbytes(total_length)}"
                 f" @ {speed}`\n"
                 f"`ETA` -> {time_formatter(estimated_total_time)}\n"
-                f"`Duration` -> {time_formatter(round(diff))}"
+                f"`Durasi` -> {time_formatter(round(diff))}"
             )
             if round(diff % 15.00) == 0 and (
                 display_message != current_message or total_length == downloaded
@@ -157,17 +164,48 @@ async def mega_downloader(megadl):
             await megadl.edit(f"`{str(e)}`")
             return None
         else:
-            await megadl.delete()
-            await bot.send_message(
-                megadl.chat_id,
+            await megadl.edit(
                 f"`{file_name}`\n\n"
-                f"Successfully downloaded in: '`{file_path}`'.\n"
-                f"Download took: {time_formatter(download_time)}.",
+                f"Berhasil diunduh di: '`{file_path}`'.\n"
+                f"Mengambil unduhan: {time_formatter(download_time)}.",
             )
-            return None
+
+        try:
+            resultgd = await upload(megadl, service, file_path, file_name, mimeType)
+        except CancelProcess:
+            megadl.respond(
+                "`[FILE - CANCELLED]`\n\n"
+                "`Status` : **OK** - sinyal yang diterima dibatalkan."
+            )
+        if resultgd and msg_link:
+            await megadl.respond(
+                "`[FILE - UPLOAD]`\n\n"
+                f"`Nama   :` `{file_name}`\n"
+                f"`Ukuran :` `{humanbytes(resultgd[0])}`\n"
+                f"`Tautan :` [{file_name}]({resultgd[1]})\n"
+                "`Status :` **OK** - Berhasil diunggah.\n",
+                link_preview=False,
+                reply_to=link_msg_id,
+            )
+            await megadl.delete()
+        elif resultgd and link:
+            await megadl.respond(
+                "`[FILE - UPLOAD]`\n\n"
+                f"`Nama   :` `{file_name}`\n"
+                f"`Ukuran :` `{humanbytes(resultgd[0])}`\n"
+                f"`Tautan :` [{file_name}]({resultgd[1]})\n"
+                "`Status :` **OK** - Berhasil diunggah.\n",
+                link_preview=False,
+            )
+            await megadl.delete()
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        else:
+            pass
     else:
         await megadl.edit(
-            "`Failed to download, " "check heroku Logs for more details.`"
+            "`Gagal mengunduh, " "periksa Log heroku untuk lebih jelasnya.`"
         )
         for e in downloader.get_errors():
             LOGS.info(str(e))
@@ -187,8 +225,8 @@ async def decrypt_file(megadl, file_path, temp_file_path, hex_key, hex_raw_key):
 
 CMD_HELP.update(
     {
-        "mega": ">`.mega <MEGA.nz link>`"
-        "\nUsage: Reply to a MEGA.nz link or paste your MEGA.nz link to "
-        "download the file into your userbot server."
+        "mega": ">`.mega <Tautan MEGA.nz>`"
+        "\nUntuk: Balas tautan Mega.nz atau tempel tautan Mega.nz Anda untuk "
+        "mengunduh file ke server userbot Anda."
     }
 )

@@ -23,7 +23,7 @@ async def paste(pstl):
     reply_id = pstl.reply_to_msg_id
 
     if not match and not reply_id:
-        return await pstl.edit("`Elon Musk said I cannot paste void.`")
+        return await pstl.edit("`Elon Musk berkata saya tidak bisa menempelkan kekosongan.`")
 
     if match:
         message = match
@@ -186,11 +186,11 @@ async def neko(nekobin):
 
 CMD_HELP.update(
     {
-        "paste": ">`.paste <text/reply>`"
-        "\nUntuk: Buat teks / url yang dipersingkat menggunakan dogbin (https://del.dog/)"
-        "\n\n>`.neko <text/reply>`"
-        "\nUntuk: Buat teks / url yang dipersingkat menggunakan nekobin (https://nekobin.com/)"
+        "paste": ">`.paste <teks/balas>`"
+        "\nUntuk: Buat teks/url yang dipersingkat menggunakan dogbin (https://del.dog/)"
+        "\n\n>`.neko <teks/balas>`"
+        "\nUntuk: Buat teks/url yang dipersingkat menggunakan nekobin (https://nekobin.com/)"
         "\n\n>`.getpaste`"
-        "\nUntuk: Mendapat konten teks / url yang dipersingkat dari dogbin (https://del.dog/)"
+        "\nUntuk: Mendapat konten teks/url yang dipersingkat dari dogbin (https://del.dog/)"
     }
 )

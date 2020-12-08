@@ -82,7 +82,7 @@ async def telegraphs(graph):
                     link_preview=True,
                 )
         else:
-            await graph.edit("`Reply to a message to get a permanent telegra.ph link.`")
+            await graph.edit("`Balas pesan untuk mendapatkan tautan telegra.ph permanen.`")
 
 
 def resize_image(image):
