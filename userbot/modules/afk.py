@@ -103,7 +103,7 @@ async def mention_afk(mention):
                     USERS[mention.sender_id] += 1
                 else:
                     USERS[chat_title] += 1
-            COUNT_MSG += 1
+                COUNT_MSG += 1
 
 
 @register(incoming=True, disable_errors=True)
