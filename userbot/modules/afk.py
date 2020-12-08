@@ -89,21 +89,21 @@ async def mention_afk(mention):
             	USERS.update({chat_title: 1})
         else:
         	if USERS[mention.sender_id] % randint(2, 4) == 0:
-                if AFKREASON:
-                    await mention.reply(
-                        f"**Sedang Offline.**\n**Sejak :** {afk_str}"
-                        f"\n**Alasan :** `{AFKREASON}`"
-                    )
+                    if AFKREASON:
+                        await mention.reply(
+                            f"**Sedang Offline.**\n**Sejak :** {afk_str}"
+                            f"\n**Alasan :** `{AFKREASON}`"
+                        )
+                    else:
+                        await mention.reply(
+                            f"**Sedang Offline.**\n**Sejak :** {afk_str}"
+                            "\n**Silahkan hubungi lagi nanti.**"
+                        )
+                if mention.sender_id is not None:
+                    USERS[mention.sender_id] += 1
                 else:
-                    await mention.reply(
-                        f"**Sedang Offline.**\n**Sejak :** {afk_str}"
-                        "\n**Silahkan hubungi lagi nanti.**"
-                    )
-            if mention.sender_id is not None:
-                USERS[mention.sender_id] += 1
-            else:
-                USERS[chat_title] += 1
-        COUNT_MSG += 1
+                    USERS[chat_title] += 1
+            COUNT_MSG += 1
 
 
 @register(incoming=True, disable_errors=True)
